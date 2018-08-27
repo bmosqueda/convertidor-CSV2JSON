@@ -1,0 +1,320 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="bulma.min.css">
+    <title>Convertidor de CSV</title>
+  </head>
+  <body>
+    <div class="column is-8 is-offset-2">
+      <div class="field">
+        <label class="label">Selecciona el archivo</label>
+        <div class="control">
+          <input class="file" accept=".csv" id="fileInput" type="file">
+        </div>
+      </div>
+      <hr>
+      <div id="divOriginalFile"></div>
+      <hr>
+      <table class="table table is-bordered is-striped is-narrow is-hoverable is-fullwidth">
+        <tbody id="divCsvFile">
+        </tbody>
+      </table>
+      <hr>
+      <div id="divJSON" style="display: none;">
+        <div class="columns">
+          <div class="column is-3">
+            <h1 class="title is-4">JSON</h1>
+          </div>
+          <div class="column is-6">
+            <div class="field">
+              <div class="control">
+                <a class="button is-link" type="button" id="btnDownloadJSON">Descargar</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="column is-12">
+          <pre id="divJSONFile"></pre>
+        </div>
+      </div>
+      <hr>
+      <div id="divXML" style="display: none;">
+        <div class="columns">
+          <div class="column is-3">
+            <h1 class="title is-4">XML</h1>
+          </div>
+          <div class="column is-6">
+            <div class="field">
+              <div class="control">
+                <a class="button is-link" type="button" id="btnDownloadXML">Descargar</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="column is-12">
+          <pre id="divXMLFile"></pre>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+    function get(id) {return document.getElementById(id);}
+    let originalContent;
+    let JSONObjects;
+    let JSONtext;
+    let XMLtext;
+    let textFile;
+    let fileName;
+
+    function makeTextFile(text) {
+      var data = new Blob([text], {type: 'text/plain'});
+      // if (textFile !== null) {
+      //   window.URL.revokeObjectURL(textFile);
+      // }
+      textFile = window.URL.createObjectURL(data);
+      return textFile;
+    };
+
+    function downloadContent(name, content) {
+      var atag = document.createElement("a");
+      var file = new Blob([content], {type: 'text/plain'});
+      atag.href = URL.createObjectURL(file);
+      atag.download = name;   
+      atag.click();
+    }
+
+    function csvToTable(text) {
+      var table = '<thead>';
+      var temp = '';
+      var especialChar = false;
+
+      var header = getHeaderOfCsv(text);
+      for (var j = 1; j < header.length; j++) {
+        table += '<th>' + header[j] + '</th>';
+      }
+      
+      table += '</thead><tr><td>';
+
+      for (var i = header[0]; i < text.length; i++) {
+        if(text[i] === '"') {
+          //Validar la comilla doble dentro de la cadena
+          if((i + 2) < text.length) {//Que tiene todavía dos caracteres
+            if(text[i + 1] === '"' && text[i + 2] === '"') {
+              table += '"';
+              i += 2;
+              continue;
+            }
+          }
+
+          if(especialChar) {
+            table += temp;
+            temp = '';
+          }
+          especialChar = !especialChar;
+          continue;
+        }
+
+        if(especialChar) {
+          temp += text[i];
+          continue;
+        } 
+
+        if(text[i] !== ',') {
+          //Salto de línea
+          if(text[i].charCodeAt(0) !== 13)
+            table += text[i];
+          else
+            table += '</tr><tr><td>';
+        }
+        else 
+          table += "</td><td>"
+      }
+
+      return table;
+    }
+
+    function getHeaderOfCsv(text) {
+      var props = [];
+      props.push(0);
+      var prop = '';
+      var temp = '';
+      var especialChar = false;
+
+      for (var i = 0; i < text.length; i++) {
+        debugger;
+        if(text[i] === '"') {
+          //Validar la comilla doble dentro de la cadena
+          if((i + 2) < text.length) {//Que tiene todavía dos caracteres
+            if(text[i + 1] === '"' && text[i + 2] === '"') {
+              prop += '"';
+              i += 2;
+              continue;
+            }
+          }
+
+          if(especialChar) {
+            prop += temp;
+            temp = '';
+          }
+          especialChar = !especialChar;
+          continue;
+        }
+
+        if(especialChar) {
+          temp += text[i];
+          continue;
+        } 
+
+        if(text[i] !== ',') {
+          //Salto de línea
+          if(text[i].charCodeAt(0) !== 13 || text[i] !== '\n' ) 
+            prop += text[i];
+          else {
+            //Donde debe empezar a contar las filas
+            props[0] += ++i;
+            console.log(props);
+            props.push(prop);
+            return props;
+          }
+        }
+        else {
+          props.push(prop);
+          prop = '';
+        }
+      }
+      console.log(props);
+      return props;
+    }
+
+    function csvToObjects(text) {
+      var json = [];
+      var object = {};
+      var props = getHeaderOfCsv(text);
+
+      var temp = '';
+      var attribute = '';
+      var propNumber = 1;
+      var especialChar = false;
+
+      for (var i = props[0]; i < text.length; i++) {
+        if(text[i] === '"') {
+          //Validar la comilla doble dentro de la cadena
+          if((i + 2) < text.length) {//Que tiene todavía dos caracteres
+            if(text[i + 1] === '"' && text[i + 2] === '"') {
+              attribute += '"';
+              i += 2;
+              continue;
+            }
+          }
+
+          if(especialChar) {
+            attribute += temp;
+            temp = '';
+          }
+          especialChar = !especialChar;
+          continue;
+        }
+
+        if(especialChar) {
+          temp += text[i];
+          continue;
+        } 
+
+        if(text[i] !== ',') {
+          //Salto de línea
+          if(text[i].charCodeAt(0) !== 13)
+            attribute += text[i];
+          else {
+            object[props[propNumber]] = attribute;
+            json.push(object);
+            propNumber = 1;
+            object = {};
+            attribute = '';
+          }
+        }
+        else {
+          object[props[propNumber++]] = attribute;
+          attribute = '';
+        }
+      }
+      object[props[propNumber]] = attribute;
+      json.push(object);
+      return json;
+    }
+
+    function objectsToXML(objects) {
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<body>\n';
+      let props = Object.keys(objects[0]);
+      let propsFormatted = [];
+      //XML correct format
+      for (var k = 0; k < props.length; k++) 
+        propsFormatted.push(convertSpacesToMinus(props[k]));
+
+      for (let i = 0; i < objects.length; i++) {
+        xml += '  <Item>\n';
+        for (let j = 0; j < props.length; j++) {
+          xml += `    <${propsFormatted[j]}> ${objects[i][props[j]].trim()} </${propsFormatted[j]}>\n`;
+        }
+        xml += '  </Item>\n';
+      }
+      xml += '</body>';
+      return xml;
+    }
+
+    function convertSpacesToMinus(text) {
+      let tempText = '';
+
+      for (var i = 0; i < text.length; i++)
+        tempText += ((text[i].charCodeAt(0) >= 48 && text[i].charCodeAt(0) <= 57) || /*Numbers*/
+                    (text[i].charCodeAt(0) >= 65 && text[i].charCodeAt(0) <= 90) || /*Lower case*/
+                    (text[i].charCodeAt(0) >= 97 && text[i].charCodeAt(0) <= 122)) ? /*Camel case*/
+                    text[i] : 
+                    '-';
+        // tempText += text[i] === ' ' ? '-' : text[i];
+
+      return tempText;
+    }
+
+    get('fileInput').addEventListener('change', function(ev) {
+      var file = ev.target.files[0];
+      if (file) {
+        var reader = new FileReader();
+        reader.readAsText(file, "UTF-8");
+        reader.onload = function (evt) {
+          originalContent = evt.target.result;
+          fileName = get('fileInput').files[0].name;
+          fileName = fileName.substring(0, fileName.length - 4);
+
+          get('divXML').style.display = '';
+          get('divJSON').style.display = '';
+
+          //Table
+          get("divOriginalFile").innerHTML = '<h1 class="title is-4">Contenido original</h1>';
+          get("divOriginalFile").innerHTML += "<p>" + originalContent + "</p>";
+          get("divCsvFile").innerHTML = '<tr><td colspan="20"><h1 class="title is-4">Tabla</h1></td></tr>'; get("divCsvFile").innerHTML += csvToTable(originalContent);
+
+          //JSON
+          var JSONObjects = csvToObjects(originalContent);
+          JSONtext = JSON.stringify(JSONObjects, undefined, 2);
+          get("divJSONFile").innerHTML = JSONtext;
+          
+          //XML
+          XMLtext = objectsToXML(JSONObjects);
+          get("divXMLFile").textContent = XMLtext;
+
+          //Download buttons
+          var linkJSON = get('btnDownloadJSON');
+          linkJSON.href = makeTextFile(JSONtext);
+          linkJSON.download = fileName + '.json'; 
+
+          var linkXML = get('btnDownloadXML');
+          linkXML.href = makeTextFile(XMLtext);
+          linkXML.download = fileName + '.xml'; 
+        }
+        reader.onerror = function (evt) {
+          get("divOriginalFile").innerHTML = "Hubo un error al leer el archivo";
+        }
+      }
+    });
+  </script>
+</html>
