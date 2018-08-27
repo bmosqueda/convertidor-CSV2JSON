@@ -141,7 +141,6 @@
       var especialChar = false;
 
       for (var i = 0; i < text.length; i++) {
-        debugger;
         if(text[i] === '"') {
           //Validar la comilla doble dentro de la cadena
           if((i + 2) < text.length) {//Que tiene todavía dos caracteres
@@ -167,7 +166,7 @@
 
         if(text[i] !== ',') {
           //Salto de línea
-          if(text[i].charCodeAt(0) !== 13 || text[i] !== '\n' ) 
+          if(text[i].charCodeAt(0) !== 13 ) 
             prop += text[i];
           else {
             //Donde debe empezar a contar las filas
@@ -183,7 +182,7 @@
         }
       }
       console.log(props);
-      return props;
+      return prop;
     }
 
     function csvToObjects(text) {
